@@ -17,3 +17,10 @@ variable "availability_zone_id" {
   type        = string
   description = "The availability zone id of the provisioned resources"
 }
+
+# See: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/guides/resource-tagging
+locals {
+  additional_tags = {
+    Project = var.project_name
+  }
+}

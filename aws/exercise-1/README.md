@@ -42,3 +42,4 @@ Done when:
         }
     ...
     ```
+- To view all resources in a centralized manner, use Tag Editor and filter on the tag "Project" with the specific `project_name`.
