@@ -1,45 +1,29 @@
-# Exercise 1 — Minimal public/private AWS network
+# AWS Terraform Exercises
+All exercises use the same Terraform module, since each one builds on the previous ones. The exercises are available in `./exercises`, and their development over time can be viewed through the Git history.
 
-Goal: understand the absolute core objects.
+# Guidelines
 
-Build:
+Start with the mindset that each exercise should end with three things: a Terraform plan that makes sense to you, an apply that succeeds, and a destroy that leaves no leftovers.
 
-* one VPC
-* two subnets in the same region and AZ
-* one internet gateway
-* one route table for public access
-* one security group
+## Recommended order
 
-Tasks:
+Do 1, 2, 3 first.
+Then 4 and 5.
+Then 6 and 7.
+Then 8, 9, 10.
 
-* Make one subnet public and one private.
-* Associate only the public subnet with a route table that sends `0.0.0.0/0` to the internet gateway.
-* Tag everything consistently.
+That path matches your current level much better than jumping straight into “enterprise VPC.”
 
-What to learn:
+## A good rule for each exercise
 
-* what a VPC actually isolates
-* the difference between subnet definition and routing
-* why “public subnet” is not a subnet type but a routing outcome
-* how Terraform resource references wire infra together
+Before you apply, force yourself to answer:
 
-Done when:
+* What is public here?
+* What is private here?
+* How does outbound internet work?
+* What controls inbound traffic?
+* What would break if I removed this resource?
 
-* you can explain why one subnet is public and the other is not, without handwaving
+That habit is probably more valuable than the Terraform syntax itself.
 
----
-
-# Notes
-- To differentiate between resources I created and default AWS resources you can use the "Default <???>" field for each resource ("Default VPC", "Default subnet" etc.).
-- AWS VPC endpoints use the AWS reserved IP ranges, published here in JSON format: https://docs.aws.amazon.com/vpc/latest/userguide/aws-ip-ranges.html. View it using `curl -s https://ip-ranges.amazonaws.com/ip-ranges.json | less`. For example, S3 endpoint in `eu-central-1` uses this CIDR block:
-    ```
-    ...
-        {
-        "ip_prefix": "52.219.170.0/23",
-        "region": "eu-central-1",
-        "service": "S3",
-        "network_border_group": "eu-central-1"
-        }
-    ...
-    ```
-- To view all resources in a centralized manner, use Tag Editor and filter on the tag "Project" with the specific `project_name`.
+I can also turn these into a stricter worksheet format with expected deliverables and self-check questions.
