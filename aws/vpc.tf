@@ -17,7 +17,7 @@ resource "aws_internet_gateway" "igw" {
 }
 
 # ----- Subnets ----- #
-resource "aws_subnet" "public_zone" {
+resource "aws_subnet" "public_subnet" {
   vpc_id               = aws_vpc.vpc.id
   cidr_block           = "10.0.0.0/19" # Range: 10.0.0.0 - 10.0.31.255; Possible IPs: 8192
   availability_zone_id = var.availability_zone_id
@@ -25,19 +25,19 @@ resource "aws_subnet" "public_zone" {
   map_public_ip_on_launch = true # Defaults to false
 
   tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-public-zone"
+    "Name" = "${var.project_name}-public-subnet"
   })
 }
 
 /* NOTE: Every subnet has a route table. One without an explicit route table gets associated
    with a default one which maps the entire VPC cidr block to local, i.e. `10.0.0.0/16: local` */
-resource "aws_subnet" "private_zone" {
+resource "aws_subnet" "private_subnet" {
   vpc_id               = aws_vpc.vpc.id
   cidr_block           = "10.0.32.0/19" # Range: 10.0.32.0 - 10.0.63.255; Possible IPs: 8192
   availability_zone_id = var.availability_zone_id
 
   tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-private-zone"
+    "Name" = "${var.project_name}-private-subnet"
   })
 }
 
@@ -56,15 +56,17 @@ resource "aws_route_table" "public_route_table" {
   })
 }
 
-resource "aws_route_table_association" "public_zone" {
-  subnet_id      = aws_subnet.public_zone.id
+resource "aws_route_table_association" "public_subnet_route_association" {
+  subnet_id      = aws_subnet.public_subnet.id
   route_table_id = aws_route_table.public_route_table.id
 }
 
 # ----- Firewall ----- #
 # See: https://registry.terraform.io/providers/-/aws/latest/docs/resources/security_group
-resource "aws_security_group" "allow_ssh" {
-  name        = "allow_ssh"
+/* NOTE: Security groups are defined at the VPC level but are attached to
+   ENI (Elastic Network Interface) supporting resources like EC2, RDS, Lambda, etc. */
+resource "aws_security_group" "allow_public_ssh" {
+  name        = "allow_public_ssh"
   description = "Allow inbound SSH only from my IP and any outbound traffic"
   vpc_id      = aws_vpc.vpc.id
 
@@ -74,10 +76,10 @@ resource "aws_security_group" "allow_ssh" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "allow_inbound_ssh_ipv4" {
-  security_group_id = aws_security_group.allow_ssh.id
+  security_group_id = aws_security_group.allow_public_ssh.id
   cidr_ipv4         = local.my_ipv4_cidr
   from_port         = 22
-  ip_protocol       = "tcp"
+  ip_protocol       = "tcp" # SSH is based on TCP protocol
   to_port           = 22
 
   tags = merge(local.additional_tags, {
@@ -88,7 +90,7 @@ resource "aws_vpc_security_group_ingress_rule" "allow_inbound_ssh_ipv4" {
 /* NOTE: By default AWS creates an ALLOW_ALL egress rule,
    but AWS terraform provider removes it, which means we have to re-add it */
 resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
-  security_group_id = aws_security_group.allow_ssh.id
+  security_group_id = aws_security_group.allow_public_ssh.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1" # semantically equivalent to all ports
 
