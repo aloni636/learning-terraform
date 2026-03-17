@@ -1,3 +1,4 @@
+# ----- Public EC2 Instance ----- #
 resource "aws_key_pair" "deployer" {
   key_name   = "${var.project_name}-deployer-key"
   public_key = file(var.public_ssh_key_path)
@@ -6,14 +7,17 @@ resource "aws_key_pair" "deployer" {
   })
 }
 
-# NOTE: When unspecified, default EBS storage is (as of 17.3.26) an 8GB gp3 SSD
+# NOTE: When unspecified, default EBS storage is (as of 17/3/26) an 8GB gp3 SSD
 resource "aws_instance" "public_instance" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
   subnet_id     = aws_subnet.public_subnet.id
   # Security groups are merged and cannot conflict with each other because they only support allow lists
-  security_groups = [aws_security_group.allow_public_ssh.id]
-  key_name        = aws_key_pair.deployer.key_name
+  vpc_security_group_ids = [ # NOTE: Don't use `security_groups` if the EC2 instance is within a VPC
+    aws_security_group.allow_my_ip_inbound_ssh.id,
+    aws_security_group.allow_all_outbound_ipv4.id,
+  ]
+  key_name = aws_key_pair.deployer.key_name
 
   tags = merge(local.additional_tags, {
     "Name" = "${var.project_name}-public-ec2-instance"
@@ -21,5 +25,29 @@ resource "aws_instance" "public_instance" {
 }
 
 output "public_instance_ip_address" {
-  value = aws_instance.public_instance.public_ip
+  value       = aws_instance.public_instance.public_ip
+  description = "Use the public IP to connect to the public instance: `ssh ubuntu@<PUBLIC-IP>`"
+}
+
+# ----- Private EC2 Instance ----- #
+resource "aws_instance" "private_instance" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = var.instance_type
+  subnet_id     = aws_subnet.private_subnet.id
+  vpc_security_group_ids = [
+    aws_security_group.allow_outbound_ssm.id,
+    aws_security_group.allow_all_outbound_ipv4.id
+  ]
+
+  iam_instance_profile        = aws_iam_instance_profile.ec2_ssm_profile.name
+  associate_public_ip_address = false
+
+  tags = merge(local.additional_tags, {
+    "Name" = "${var.project_name}-private-ec2-instance"
+  })
+}
+
+output "private_instance_id" {
+  value       = aws_instance.private_instance.id
+  description = "Use the instance id with SSM to connect to the private instance: `aws ssm start-session --target <INSTANCE-ID>`"
 }
