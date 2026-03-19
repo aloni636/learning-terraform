@@ -8,10 +8,12 @@ resource "aws_key_pair" "deployer" {
 }
 
 # NOTE: When unspecified, default EBS storage is (as of 17/3/26) an 8GB gp3 SSD
-resource "aws_instance" "public_instance" {
+resource "aws_instance" "public_instances" {
+  for_each = var.availability_zones
+
   ami           = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
-  subnet_id     = aws_subnet.public_subnet.id
+  subnet_id     = aws_subnet.public_subnets[each.key].id
   # Security groups are merged and cannot conflict with each other because they only support allow lists
   vpc_security_group_ids = [ # NOTE: Don't use `security_groups` if the EC2 instance is within a VPC
     aws_security_group.allow_my_ip_inbound_ssh.id,
@@ -20,20 +22,22 @@ resource "aws_instance" "public_instance" {
   key_name = aws_key_pair.deployer.key_name
 
   tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-public-ec2-instance"
+    "Name" = "${var.project_name}-public-ec2-instance-${each.key}"
   })
 }
 
-output "public_instance_ip_address" {
-  value       = aws_instance.public_instance.public_ip
+output "public_instance_ip_addresses" {
+  value       = { for k, v in aws_instance.public_instances : k => v.public_ip }
   description = "Use the public IP to connect to the public instance: `ssh ubuntu@<PUBLIC-IP>`"
 }
 
 # ----- Private EC2 Instance ----- #
-resource "aws_instance" "private_instance" {
+resource "aws_instance" "private_instances" {
+  for_each = var.availability_zones
+
   ami           = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
-  subnet_id     = aws_subnet.private_subnet.id
+  subnet_id     = aws_subnet.private_subnets[each.key].id
   vpc_security_group_ids = [
     aws_security_group.allow_outbound_ssm.id,
     aws_security_group.allow_all_outbound_ipv4.id
@@ -43,11 +47,11 @@ resource "aws_instance" "private_instance" {
   associate_public_ip_address = false
 
   tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-private-ec2-instance"
+    "Name" = "${var.project_name}-private-ec2-instance-${each.key}"
   })
 }
 
-output "private_instance_id" {
-  value       = aws_instance.private_instance.id
-  description = "Use the instance id with SSM to connect to the private instance: `aws ssm start-session --target <INSTANCE-ID>`"
+output "private_instance_ids" {
+  value       = { for k, v in aws_instance.private_instances : k => v.id }
+  description = "Use the instance ids with SSM to connect to the private instance: `aws ssm start-session --target <INSTANCE-ID>`"
 }
