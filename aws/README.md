@@ -5,15 +5,6 @@ All exercises use the same Terraform module, since each one builds on the previo
 
 Start with the mindset that each exercise should end with three things: a Terraform plan that makes sense to you, an apply that succeeds, and a destroy that leaves no leftovers.
 
-## Recommended order
-
-Do 1, 2, 3 first.
-Then 4 and 5.
-Then 6 and 7.
-Then 8, 9, 10.
-
-That path matches your current level much better than jumping straight into “enterprise VPC.”
-
 ## A good rule for each exercise
 
 Before you apply, force yourself to answer:
