@@ -41,3 +41,12 @@ output "aws_ami_ubuntu_name" {
 output "aws_ami_ubuntu_creation_date" {
   value = data.aws_ami.ubuntu.creation_date
 }
+
+# CIDR blocks dedicated to the regional S3 services, accessible from the VPC gateway
+data "aws_prefix_list" "s3" {
+  name = "com.amazonaws.${var.region}.s3"
+}
+
+output "aws_s3_prefix_list" {
+  value = data.aws_prefix_list.s3.cidr_blocks
+}

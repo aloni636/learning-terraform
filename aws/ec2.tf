@@ -40,10 +40,11 @@ resource "aws_instance" "private_instances" {
   subnet_id     = aws_subnet.private_subnets[each.key].id
   vpc_security_group_ids = [
     aws_security_group.allow_outbound_ssm.id,
-    aws_security_group.allow_all_outbound_ipv4.id
+    aws_security_group.allow_all_outbound_ipv4.id,
+    aws_security_group.allow_outbound_s3.id
   ]
 
-  iam_instance_profile        = aws_iam_instance_profile.ec2_ssm_profile.name
+  iam_instance_profile        = aws_iam_instance_profile.private_ec2_profile.name
   associate_public_ip_address = false
 
   tags = merge(local.additional_tags, {

@@ -45,6 +45,10 @@ variable "public_ssh_key_path" {
   description = "The public-key used to log into the provisioned public EC2 instance"
 }
 
+variable "s3_bucket_name" {
+  type = string
+}
+
 # See: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/guides/resource-tagging
 locals {
   additional_tags = {

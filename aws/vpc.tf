@@ -20,10 +20,6 @@ resource "aws_internet_gateway" "igw" {
   })
 }
 
-locals {
-
-}
-
 # ----- Subnets ----- #
 resource "aws_subnet" "public_subnets" {
   for_each = var.availability_zones
@@ -54,8 +50,8 @@ resource "aws_subnet" "private_subnets" {
 }
 
 # ----- NAT Gateway For Each AZ ----- #
-# NOTE: NAT for each AZ is more resilient but costs ~32$ per AZ plus 0.05$ per GB data processing cost
-#       Which is actually 2.5x higher then cross AZ data transfers (accounting for per direction cost)
+# NOTE[PRICING]: NAT for each AZ is more resilient but costs ~32$ per AZ plus 0.05$ per GB data processing cost
+#       Which is actually 2.5x higher than cross AZ data transfers (accounting for per direction cost)
 # NAT Pricing: https://aws.amazon.com/vpc/pricing/#:~:text=VPC%20Encryption%20Controls-,NAT%20Gateway%20Pricing,-If%20you%20choose
 # Cross Region Pricing: https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer_within_the_same_AWS_Region:~:text=Data%20Transfer%20within%20the%20same%20AWS%20Region
 resource "aws_eip" "eips" {
@@ -131,101 +127,12 @@ resource "aws_route_table_association" "private_subnet_route_association" {
   route_table_id = aws_route_table.private_route_tables[each.key].id
 }
 
-# ----- Public Firewall ----- #
-# See: https://registry.terraform.io/providers/-/aws/latest/docs/resources/security_group
-/* NOTE: Security groups are defined at the VPC level but are attached to
-   ENI (Elastic Network Interface) supporting resources like EC2, RDS, Lambda, etc. */
-resource "aws_security_group" "allow_my_ip_inbound_ssh" {
-  name        = "allow_my_ip_inbound_ssh"
-  description = "Allow inbound SSH only from my IP and any outbound traffic"
-  vpc_id      = aws_vpc.vpc.id
-
-  tags = merge(local.additional_tags, {
-    Name = "${var.project_name}-allow-my-ip-inbound-ssh"
-  })
-}
-
-resource "aws_security_group" "allow_all_outbound_ipv4" {
-  name        = "allow_all_outbound_ipv4"
-  description = "Allow any outbound ipv4 communication"
-  vpc_id      = aws_vpc.vpc.id
-
-  tags = merge(local.additional_tags, {
-    Name = "${var.project_name}-allow-all-outbound-ipv4"
-  })
-}
-
-resource "aws_vpc_security_group_ingress_rule" "allow_my_ip_inbound_ssh_rule" {
-  security_group_id = aws_security_group.allow_my_ip_inbound_ssh.id
-  cidr_ipv4         = local.my_ipv4_cidr
-  from_port         = 22
-  ip_protocol       = "tcp" # SSH is based on TCP protocol
-  to_port           = 22
-
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-allow-my-ip-inbound-ssh-rule"
-  })
-}
-
-/* NOTE: By default AWS creates an ALLOW_ALL egress rule,
-   but AWS terraform provider removes it, which means we have to re-add it */
-resource "aws_vpc_security_group_egress_rule" "allow_all_outbound_ipv4_rule" {
-  security_group_id = aws_security_group.allow_all_outbound_ipv4.id
-  cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "-1" # semantically equivalent to all ports
-
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-allow-all-outbound-ipv4-rule"
-  })
-}
-
-# ----- Private SSM Firewall ----- #
-resource "aws_security_group" "allow_outbound_ssm" {
-  name        = "allow_outbound_ssm"
-  description = "Allow HTTPS from private instances to SSM endpoints"
-  vpc_id      = aws_vpc.vpc.id
-
-  tags = merge(local.additional_tags, {
-    Name = "${var.project_name}-allow-outbound-ssm"
-  })
-}
-
-# SSM requires port 443; See: https://docs.aws.amazon.com/general/latest/gr/ssm.html#ssm_region
-resource "aws_vpc_security_group_egress_rule" "allow_outbound_ssm_rule" {
-  security_group_id = aws_security_group.allow_outbound_ssm.id
-  from_port         = 443
-  to_port           = 443
-  ip_protocol       = "tcp"
-  /* Different from classical cidr block notation, this security rule means that 
-     only SSM endpoints can be contacted from this security group */
-  referenced_security_group_id = aws_security_group.allow_inbound_ssm.id
-}
-
-resource "aws_security_group" "allow_inbound_ssm" {
-  name        = "allow_inbound_ssm"
-  description = "Allow HTTPS from private instances to SSM endpoints"
-  vpc_id      = aws_vpc.vpc.id
-
-  tags = merge(local.additional_tags, {
-    Name = "${var.project_name}-allow-inbound-ssm"
-  })
-}
-
-resource "aws_vpc_security_group_ingress_rule" "allow_inbound_ssm_rule" {
-  security_group_id = aws_security_group.allow_inbound_ssm.id
-  from_port         = 443
-  to_port           = 443
-  ip_protocol       = "tcp"
-  /* Different from classical cidr block notation, this security rule means that 
-     only resources with outbound SSM security group can access SSM endpoints */
-  referenced_security_group_id = aws_security_group.allow_outbound_ssm.id
-
-  tags = merge(local.additional_tags, {
-    Name = "${var.project_name}-allow-inbound-ssm-rule"
-  })
-}
-
-# ----- Private Subnet SSM Endpoints ----- #
+# ----- Private Subnet SSM Network Interface Endpoints ----- #
+/* NOTE[PRICING]: Interface endpoints are actually quite expensive, and because SSM
+   requires 3 services, and each endpoint must reside within each AZ, we get this
+   wonderful pricing formula: 3 x AZ 
+   With the bulk of the pricing being on flat per hour per AZ, each AZ SSM costs around 3*(0.01$*24*30) = 21.6$
+   See: https://aws.amazon.com/privatelink/pricing/#:~:text=source%20or%20destination.-,Interface%20Endpoint%20pricing,-You%20can%20use */
 resource "aws_vpc_endpoint" "ssm_endpoints" {
   for_each = toset(["ssm", "ssmmessages", "ec2messages"])
 
@@ -239,5 +146,18 @@ resource "aws_vpc_endpoint" "ssm_endpoints" {
 
   tags = merge(local.additional_tags, {
     Name = "${var.project_name}-${each.value}-endpoint"
+  })
+}
+
+# ----- S3 Endpoint ----- #
+# See: https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies-vpc-endpoint.html?utm_source=chatgpt.com
+resource "aws_vpc_endpoint" "s3_endpoint" {
+  vpc_id            = aws_vpc.vpc.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = values(aws_route_table.private_route_tables)[*].id
+
+  tags = merge(local.additional_tags, {
+    Name = "${var.project_name}-s3-gateway-endpoint"
   })
 }
