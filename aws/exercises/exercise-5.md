@@ -33,3 +33,29 @@ Done when:
 
 * a private instance can use exactly one S3 bucket through the S3 endpoint and without relying on NAT
 
+---
+
+To verify the connection to the bucket from the private instance, execute the following  commands:
+```
+# connect to the private instance
+> aws ssm start-session --target <INSTANCE-ID>
+
+# Install aws-cli
+$ sudo snap install aws-cli --classic
+
+# upload and download capabilities
+$ aws s3 cp /etc/hostname s3://<BUCKET_NAME>/hostname
+$ aws s3 cp s3://<BUCKET_NAME>/hostname /tmp/hostname
+# should output nothing if they are the same
+$ cmp /etc/hostname /tmp/hostname
+
+# delete capability
+$ aws s3 cp /etc/hostname s3://<BUCKET_NAME>/hostname2
+$ aws s3 rm s3://<BUCKET_NAME>/hostname2
+```
+
+***Explain the difference between network access to S3 and IAM permission to use S3:*** \
+Network access means that the S3 service/bucket is available from the VPC network. IAM permissions control which resources within the network can access each specific S3 bucket.
+
+***Explain what changes in the route tables and what does not:*** \
+The private subnet route table received a single entry containing the published CIDR blocks for the current region where S3 services are exposed. This is necessary because S3 gateway is a route table gateway, a resource working with CIDR blocks and routes. Everything else (NAT and local routes) stays the same.
