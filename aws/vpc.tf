@@ -22,7 +22,7 @@ resource "aws_internet_gateway" "igw" {
 
 # ----- Subnets ----- #
 resource "aws_subnet" "public_subnets" {
-  for_each = var.availability_zones
+  for_each = local.public_azs
 
   vpc_id               = aws_vpc.vpc.id
   cidr_block           = each.value.public_cidr
@@ -38,7 +38,7 @@ resource "aws_subnet" "public_subnets" {
 /* NOTE: Every subnet has a route table. One without an explicit route table gets associated
    with a default one which maps the entire VPC cidr block to local, i.e. `10.0.0.0/16: local` */
 resource "aws_subnet" "private_subnets" {
-  for_each = var.availability_zones
+  for_each = local.private_azs
 
   vpc_id               = aws_vpc.vpc.id
   cidr_block           = each.value.private_cidr
@@ -55,7 +55,7 @@ resource "aws_subnet" "private_subnets" {
 # NAT Pricing: https://aws.amazon.com/vpc/pricing/#:~:text=VPC%20Encryption%20Controls-,NAT%20Gateway%20Pricing,-If%20you%20choose
 # Cross Region Pricing: https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer_within_the_same_AWS_Region:~:text=Data%20Transfer%20within%20the%20same%20AWS%20Region
 resource "aws_eip" "eips" {
-  for_each = var.availability_zones
+  for_each = local.nat_azs
 
   domain = "vpc"
 
@@ -67,7 +67,7 @@ resource "aws_eip" "eips" {
 
 # See: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/nat_gateway#public-nat
 resource "aws_nat_gateway" "nat_gateways" {
-  for_each = var.availability_zones
+  for_each = local.nat_azs
 
   # When iterating over a map, terraform allows accessing the created resources by the map keys
   allocation_id     = aws_eip.eips[each.key].id
@@ -83,6 +83,8 @@ resource "aws_nat_gateway" "nat_gateways" {
 # ----- Public Route Table Shared Across AZs ----- #
 # NOTE: A public route table is basically an all traffic route rule to internet gateway, so it can be shared across all AZs
 resource "aws_route_table" "public_route_table" {
+  count = local.has_public_subnets ? 1 : 0
+
   vpc_id = aws_vpc.vpc.id
 
   # Route every destination (apart from local IPs, i.e. 10.0.0.0/17) to the internet
@@ -97,31 +99,34 @@ resource "aws_route_table" "public_route_table" {
 }
 
 resource "aws_route_table_association" "public_subnet_route_association" {
-  for_each = var.availability_zones
+  for_each = local.public_azs
 
   subnet_id      = aws_subnet.public_subnets[each.key].id
-  route_table_id = aws_route_table.public_route_table.id
+  route_table_id = aws_route_table.public_route_table[0].id
 }
 
 # ----- Private Route Table For Each AZ ----- #
 # NOTE: We split each route table because we provision NAT per private AZ, reducing transfer costs
 resource "aws_route_table" "private_route_tables" {
-  for_each = var.availability_zones
+  for_each = local.private_azs
 
   vpc_id = aws_vpc.vpc.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.nat_gateways[each.key].id
-  }
 
   tags = merge(local.additional_tags, {
     "Name" = "${var.project_name}-private-route-table-${each.key}"
   })
 }
 
+resource "aws_route" "private_nat_route" {
+  for_each = local.nat_azs
+
+  route_table_id         = aws_route_table.private_route_tables[each.key].id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.nat_gateways[each.key].id
+}
+
 resource "aws_route_table_association" "private_subnet_route_association" {
-  for_each = var.availability_zones
+  for_each = local.private_azs
 
   subnet_id      = aws_subnet.private_subnets[each.key].id
   route_table_id = aws_route_table.private_route_tables[each.key].id

@@ -1,5 +1,9 @@
 # ----- Public EC2 Instance ----- #
 resource "aws_key_pair" "deployer" {
+  # Trick to conditionally create a resource
+  # NOTE: This resource is now a list with 0 or 1 items, so referencing it requires indexing
+  count = local.has_public_subnets ? 1 : 0
+
   key_name   = "${var.project_name}-deployer-key"
   public_key = file(var.public_ssh_key_path)
   tags = merge(local.additional_tags, {
@@ -9,7 +13,7 @@ resource "aws_key_pair" "deployer" {
 
 # NOTE: When unspecified, default EBS storage is (as of 17/3/26) an 8GB gp3 SSD
 resource "aws_instance" "public_instances" {
-  for_each = var.availability_zones
+  for_each = local.public_azs
 
   ami           = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
@@ -19,7 +23,7 @@ resource "aws_instance" "public_instances" {
     aws_security_group.allow_my_ip_inbound_ssh.id,
     aws_security_group.allow_all_outbound_ipv4.id,
   ]
-  key_name = aws_key_pair.deployer.key_name
+  key_name = aws_key_pair.deployer[0].key_name
 
   tags = merge(local.additional_tags, {
     "Name" = "${var.project_name}-public-ec2-instance-${each.key}"
@@ -33,7 +37,7 @@ output "public_instance_ip_addresses" {
 
 # ----- Private EC2 Instance ----- #
 resource "aws_instance" "private_instances" {
-  for_each = var.availability_zones
+  for_each = local.private_azs
 
   ami           = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
