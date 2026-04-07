@@ -118,5 +118,5 @@ resource "aws_vpc_security_group_egress_rule" "allow_outbound_s3_gateway" {
   to_port           = 443
   ip_protocol       = "tcp"
   # The CIDR blocks dedicated to S3 services, accessible from the gateway
-  prefix_list_id    = data.aws_prefix_list.s3.id
+  prefix_list_id = data.aws_prefix_list.s3.id
 }
