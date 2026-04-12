@@ -120,3 +120,46 @@ resource "aws_vpc_security_group_egress_rule" "allow_outbound_s3_gateway" {
   # The CIDR blocks dedicated to S3 services, accessible from the gateway
   prefix_list_id = data.aws_prefix_list.s3.id
 }
+
+# ----- Private RDS SGs ----- #
+resource "aws_security_group" "outbound_rds" {
+  name        = "outbound_rds"
+  description = "Allow outbound HTTPS from instances to RDS endpoints"
+  vpc_id      = aws_vpc.vpc.id
+
+  tags = merge(local.additional_tags, {
+    Name = "${var.project_name}-allow-outbound-rds"
+  })
+}
+
+resource "aws_vpc_security_group_egress_rule" "outbound_rds_rule" {
+  security_group_id            = aws_security_group.outbound_rds.id
+  from_port                    = 5432
+  to_port                      = 5432
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.inbound_rds.id
+
+  tags = local.additional_tags
+}
+
+resource "aws_security_group" "inbound_rds" {
+  name        = "inbound_rds"
+  description = "Allow inbound HTTPS from instances to RDS endpoints"
+  vpc_id      = aws_vpc.vpc.id
+
+  tags = merge(local.additional_tags, {
+    Name = "${var.project_name}-allow-inbound-rds"
+  })
+}
+
+resource "aws_vpc_security_group_ingress_rule" "inbound_rds_rule" {
+  security_group_id            = aws_security_group.inbound_rds.id
+  from_port                    = 5432
+  to_port                      = 5432
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.outbound_rds.id
+
+  tags = merge(local.additional_tags, {
+    Name = "${var.project_name}-allow-inbound-rds-rule"
+  })
+}

@@ -16,7 +16,7 @@ resource "aws_instance" "public_instances" {
   for_each = local.public_azs
 
   ami           = data.aws_ami.ubuntu.id
-  instance_type = var.instance_type
+  instance_type = var.ec2_instance_type
   subnet_id     = aws_subnet.public_subnets[each.key].id
   # Security groups are merged and cannot conflict with each other because they only support allow lists
   vpc_security_group_ids = [ # NOTE: Don't use `security_groups` if the EC2 instance is within a VPC
@@ -37,15 +37,16 @@ output "public_instance_ip_addresses" {
 
 # ----- Private EC2 Instance ----- #
 resource "aws_instance" "private_instances" {
-  for_each = local.private_azs
+  for_each = var.availability_zones
 
   ami           = data.aws_ami.ubuntu.id
-  instance_type = var.instance_type
+  instance_type = var.ec2_instance_type
   subnet_id     = aws_subnet.private_subnets[each.key].id
   vpc_security_group_ids = [
     aws_security_group.allow_outbound_ssm.id,
     aws_security_group.allow_all_outbound_ipv4.id,
-    aws_security_group.allow_outbound_s3.id
+    aws_security_group.allow_outbound_s3.id,
+    aws_security_group.outbound_rds.id
   ]
 
   iam_instance_profile        = aws_iam_instance_profile.private_ec2_profile.name
