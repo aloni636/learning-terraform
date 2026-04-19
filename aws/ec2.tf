@@ -70,23 +70,3 @@ resource "aws_instance" "bastion" {
     Name = "bastion-instance-${local.main_az.name}"
   }
 }
-
-# ----- Outputs ----- #
-output "public_instance_ip_addresses" {
-  value       = { for k, v in aws_instance.public_instances : k => v.public_ip }
-  description = "Use the public IP to connect to the public instance: `ssh ubuntu@<PUBLIC-IP>`"
-}
-
-output "private_instance_ids" {
-  value       = { for k, v in aws_instance.private_instances : k => v.id }
-  description = <<-EOF
-  Use the instance ids with SSM to connect to the private instance: `aws ssm start-session --target <INSTANCE-ID>`
-  EOF
-}
-
-output "bastion_instance_id" {
-  value       = aws_instance.bastion.id
-  description = <<-EOF
-  TODO...
-  EOF
-}
