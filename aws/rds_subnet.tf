@@ -7,7 +7,7 @@ resource "aws_subnet" "rds" {
   cidr_block           = each.value.rds_cidr
   availability_zone_id = each.key
 
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-rds-subnet-${each.key}"
-  })
+  tags = {
+    Name = "rds-subnet-${each.key}"
+  }
 }

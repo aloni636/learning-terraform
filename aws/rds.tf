@@ -1,23 +1,23 @@
 resource "aws_db_subnet_group" "rds" {
+  name = "rds_subnet_group"
   subnet_ids = values(aws_subnet.rds)[*].id
 }
 
-# KMS not enabled because... because IDK maybe do do it 1$ per month
-# resource "aws_secretsmanager_secret" "name" {
+# TODO: Explore KMS as top level of the encryption chain (1$ per month)
+# resource "aws_secretsmanager_secret" "name" { }
 
-# }
-
+# TODO: Enable cloudwatch with enhanced monitoring (IAM role and RDS config)
 # resource "aws_iam_role" "rds_enhanced_monitoring" {
 #   assume_role_policy = 
 # }
-
 # enabled_cloudwatch_logs_exports = ["postgresql"]
-# resource "aws_cloudwatch_log_group" "rds" {}
+# resource "aws_cloudwatch_log_group" "rds" { }
 
 # NOTE: RDS is a managed database service, meaning we have a restricted access
 # to PostgreSQL features. For example: limited set of extensions,
 # no access to the filesystem or shell, limited access to raw logs, etc.
 resource "aws_db_instance" "db" {
+  db_name = "${var.project_name}-db"
   # Engine
   engine                     = "postgres"
   engine_version             = "18.3"
@@ -26,12 +26,16 @@ resource "aws_db_instance" "db" {
   # Storage
   allocated_storage   = 32
   skip_final_snapshot = true
+  deletion_protection = false
+  delete_automated_backups = true
+
+  # TODO: Add automated backups and snapshots config
 
   # Compute
   instance_class = var.rds_instance_type
 
   # Security
-  username                    = "admin"
+  username                    = "rds_user"
   db_subnet_group_name        = aws_db_subnet_group.rds.name
   vpc_security_group_ids      = [aws_security_group.inbound_rds.id]
   manage_master_user_password = true
@@ -45,5 +49,4 @@ resource "aws_db_instance" "db" {
 
   # Monitoring
   # monitoring_interval = 60
-
 }

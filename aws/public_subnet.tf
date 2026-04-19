@@ -2,9 +2,9 @@
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc.id
 
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-igw"
-  })
+  tags = {
+    Name = "igw"
+  }
 }
 
 # ----- Subnets ----- #
@@ -17,9 +17,9 @@ resource "aws_subnet" "public_subnets" {
 
   map_public_ip_on_launch = true # Defaults to false
 
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-public-subnet-${each.key}"
-  })
+  tags = {
+    Name = "public-subnet-${each.key}"
+  }
 }
 
 # ----- Public Route Table Shared Across AZs ----- #
@@ -35,9 +35,9 @@ resource "aws_route_table" "public_route_table" {
     gateway_id = aws_internet_gateway.igw.id
   }
 
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-public-route-table"
-  })
+  tags = {
+    Name = "public-route-table"
+  }
 }
 
 resource "aws_route_table_association" "public_subnet_route_association" {

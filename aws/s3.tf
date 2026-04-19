@@ -4,9 +4,9 @@ resource "aws_s3_bucket" "s3_bucket" {
   bucket        = var.s3_bucket_name
   force_destroy = true # WARNING: This flag will lead to data loss if terraform destroys this bucket!
 
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-s3-bucket"
-  })
+  tags = {
+    Name = "s3-bucket"
+  }
 }
 
 # See: https://registry.terraform.io/providers/-/aws/latest/docs/resources/s3_bucket_public_access_block#example-usage

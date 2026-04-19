@@ -15,9 +15,9 @@ resource "aws_iam_role" "private_ec2_role" {
       }
     ]
   })
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-private-ec2-role"
-  })
+  tags = {
+    Name = "private-ec2-role"
+  }
 }
 
 # A policy which dictates that EC2 instances can communicate with SSM
@@ -54,9 +54,9 @@ resource "aws_iam_policy" "s3_read_write_policy" {
     ]
   })
 
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-s3-read_write-policy"
-  })
+  tags = {
+    Name = "s3-read_write-policy"
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "ec2_s3_iam_attachment" {
@@ -69,7 +69,7 @@ resource "aws_iam_instance_profile" "private_ec2_profile" {
   name = "${var.project_name}-private-ec2-profile"
   role = aws_iam_role.private_ec2_role.name
 
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-private-ec2-profile"
-  })
+  tags = {
+    Name = "private-ec2-profile"
+  }
 }

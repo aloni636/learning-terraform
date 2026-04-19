@@ -7,9 +7,9 @@ resource "aws_subnet" "private_subnets" {
   cidr_block           = each.value.private_cidr
   availability_zone_id = each.key
 
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-private-subnet-${each.key}"
-  })
+  tags = {
+    Name = "private-subnet-${each.key}"
+  }
 }
 
 # ----- NAT Gateway For Each AZ ----- #
@@ -23,9 +23,9 @@ resource "aws_eip" "eips" {
   domain = "vpc"
 
   depends_on = [aws_internet_gateway.igw]
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-eip-${each.key}"
-  })
+  tags = {
+    Name = "eip-${each.key}"
+  }
 }
 
 # See: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/nat_gateway#public-nat
@@ -38,9 +38,9 @@ resource "aws_nat_gateway" "nat_gateways" {
   availability_mode = "zonal"                                # Newer NATs can be regional, automatically provisioned per AZ, but cost is still per AZ
 
   depends_on = [aws_internet_gateway.igw]
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-nat-gateway-${each.key}"
-  })
+  tags = {
+    Name = "nat-gateway-${each.key}"
+  }
 }
 
 # ----- Private Route Table For Each AZ ----- #
@@ -50,9 +50,9 @@ resource "aws_route_table" "private_route_tables" {
 
   vpc_id = aws_vpc.vpc.id
 
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-private-route-table-${each.key}"
-  })
+  tags = {
+    Name = "private-route-table-${each.key}"
+  }
 }
 
 resource "aws_route" "private_nat_route" {
@@ -79,7 +79,7 @@ resource "aws_vpc_endpoint" "s3_endpoint" {
   vpc_endpoint_type = "Gateway"
   route_table_ids   = values(aws_route_table.private_route_tables)[*].id
 
-  tags = merge(local.additional_tags, {
-    Name = "${var.project_name}-s3-gateway-endpoint"
-  })
+  tags = {
+    Name = "s3-gateway-endpoint"
+  }
 }

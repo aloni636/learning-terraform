@@ -47,6 +47,7 @@ data "aws_prefix_list" "s3" {
   name = "com.amazonaws.${var.region}.s3"
 }
 
-output "aws_s3_prefix_list" {
-  value = data.aws_prefix_list.s3.cidr_blocks
-}
+# NOTE: You can view all s3 prefix lists (list of CIDR blocks) by uncommenting this block:
+# output "aws_s3_prefix_list" {
+#   value = data.aws_prefix_list.s3.cidr_blocks
+# }

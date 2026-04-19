@@ -5,9 +5,9 @@ resource "aws_subnet" "ssm" {
   cidr_block           = each.value.ssm_cidr
   availability_zone_id = each.key
 
-  tags = merge(local.additional_tags, {
-    "Name" = "${var.project_name}-rds-subnet-${each.key}"
-  })
+  tags = {
+    Name = "rds-subnet-${each.key}"
+  }
 }
 
 # ----- Private Subnet SSM Network Interface Endpoints ----- #
@@ -23,11 +23,11 @@ resource "aws_vpc_endpoint" "ssm_endpoints" {
   service_name       = "com.amazonaws.${var.region}.${each.value}"
   vpc_endpoint_type  = "Interface"
   subnet_ids         = values(aws_subnet.ssm)[*].id
-  security_group_ids = [aws_security_group.allow_inbound_ssm.id]
+  security_group_ids = [aws_security_group.inbound_ssm.id]
   # We need DNS to make sure the public SSM service IP gets translated to a private IP within the subnet
   private_dns_enabled = true
 
-  tags = merge(local.additional_tags, {
-    Name = "${var.project_name}-${each.value}-endpoint"
-  })
+  tags = {
+    Name = "${each.value}-endpoint"
+  }
 }
