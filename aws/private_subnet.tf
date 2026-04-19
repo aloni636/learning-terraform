@@ -3,9 +3,9 @@
 resource "aws_subnet" "private_subnets" {
   for_each = var.availability_zones
 
-  vpc_id               = aws_vpc.vpc.id
-  cidr_block           = each.value.private_cidr
-  availability_zone_id = each.key
+  vpc_id            = aws_vpc.vpc.id
+  cidr_block        = each.value.private_cidr
+  availability_zone = each.key
 
   tags = {
     Name = "private-subnet-${each.key}"

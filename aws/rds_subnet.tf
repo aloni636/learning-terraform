@@ -3,9 +3,9 @@
 resource "aws_subnet" "rds" {
   for_each = local.rds_azs
 
-  vpc_id               = aws_vpc.vpc.id
-  cidr_block           = each.value.rds_cidr
-  availability_zone_id = each.key
+  vpc_id            = aws_vpc.vpc.id
+  cidr_block        = each.value.rds_cidr
+  availability_zone = each.key
 
   tags = {
     Name = "rds-subnet-${each.key}"

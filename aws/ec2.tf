@@ -30,14 +30,9 @@ resource "aws_instance" "public_instances" {
   }
 }
 
-output "public_instance_ip_addresses" {
-  value       = { for k, v in aws_instance.public_instances : k => v.public_ip }
-  description = "Use the public IP to connect to the public instance: `ssh ubuntu@<PUBLIC-IP>`"
-}
-
 # ----- Private EC2 Instance ----- #
 resource "aws_instance" "private_instances" {
-  for_each = var.availability_zones
+  for_each = local.private_ec2_azs
 
   ami           = data.aws_ami.ubuntu.id
   instance_type = var.ec2_instance_type
@@ -57,7 +52,41 @@ resource "aws_instance" "private_instances" {
   }
 }
 
+
+# ----- SSM EC2 Tunnel ----- #
+resource "aws_instance" "bastion" {
+  ami           = data.aws_ssm_parameter.amazon_linux_arm.value
+  instance_type = var.bastion_instance_type
+  subnet_id     = aws_subnet.ssm[local.main_az.name].id
+  vpc_security_group_ids = [
+    aws_security_group.outbound_ssm.id,
+    aws_security_group.outbound_rds.id
+  ]
+
+  iam_instance_profile        = aws_iam_instance_profile.bastion_profile.name
+  associate_public_ip_address = false
+
+  tags = {
+    Name = "bastion-instance-${local.main_az.name}"
+  }
+}
+
+# ----- Outputs ----- #
+output "public_instance_ip_addresses" {
+  value       = { for k, v in aws_instance.public_instances : k => v.public_ip }
+  description = "Use the public IP to connect to the public instance: `ssh ubuntu@<PUBLIC-IP>`"
+}
+
 output "private_instance_ids" {
   value       = { for k, v in aws_instance.private_instances : k => v.id }
-  description = "Use the instance ids with SSM to connect to the private instance: `aws ssm start-session --target <INSTANCE-ID>`"
+  description = <<-EOF
+  Use the instance ids with SSM to connect to the private instance: `aws ssm start-session --target <INSTANCE-ID>`
+  EOF
+}
+
+output "bastion_instance_id" {
+  value       = aws_instance.bastion.id
+  description = <<-EOF
+  TODO...
+  EOF
 }

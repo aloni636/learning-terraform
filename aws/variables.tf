@@ -14,8 +14,9 @@ variable "region" {
   nullable    = false
 }
 
-# TODO: Change to private_private_rds, as RDS will live in its own subnet,
-#       separated from possible private NAT
+# Each key is an availability zone name (NOT AZ-ID!), which can be queried from the aws cli:
+# `aws ec2 describe-availability-zones --region <YOUR_REGION>` --query "AvailabilityZones[*].ZoneName"`
+# https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-availability-zones.html
 variable "availability_zones" {
   type = map(object({
     public_cidr  = optional(string)
@@ -23,9 +24,12 @@ variable "availability_zones" {
     ssm_cidr     = string
     private_nat  = optional(bool, false)
     rds_cidr     = optional(string)
+    main_az      = optional(bool, false)
+    private_ec2  = optional(bool, false)
   }))
   description = <<-EOF
-  The availability zones configuration of the provisioned VPC. \
+  A key/value pairs of `<availability_zone_name> = <configuration>` \
+  controlling the availability zone configurations of the provisioned VPC. \
   See: https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-availability-zones.html
   EOF
   nullable    = false
@@ -36,6 +40,21 @@ variable "availability_zones" {
     error_message = <<-EOF
     RDS requires at least 2 availability zones to deploy an RDS instance.
     Consider allocating IP ranges in at least 2 AZs for RDS.
+    EOF
+  }
+
+  validation {
+    condition     = length([for az, cfg in var.availability_zones : az if cfg.main_az]) == 1
+    error_message = <<-EOF
+    Only one AZ can be the main AZ. Main AZ is used to place the RDS instance and the \
+    SSM based bastion EC2 instance in it.
+    EOF
+  }
+
+  validation {
+    condition     = alltrue([for az, cfg in var.availability_zones : cfg.rds_cidr != null if cfg.main_az])
+    error_message = <<-EOF
+    Main AZ is used to place an RDS instance within it, therefore it must have an RDS cidr block.
     EOF
   }
 
@@ -55,6 +74,13 @@ variable "ec2_instance_type" {
   default     = "t3.micro"
   type        = string
   description = "The instance type of all provisioned EC2 instances"
+  nullable    = false
+}
+
+variable "bastion_instance_type" {
+  default     = "t4g.nano"
+  type        = string
+  description = "The instance type of the provisioned bastion/jump-box for RDS"
   nullable    = false
 }
 

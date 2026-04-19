@@ -11,9 +11,9 @@ resource "aws_internet_gateway" "igw" {
 resource "aws_subnet" "public_subnets" {
   for_each = local.public_azs
 
-  vpc_id               = aws_vpc.vpc.id
-  cidr_block           = each.value.public_cidr
-  availability_zone_id = each.key
+  vpc_id            = aws_vpc.vpc.id
+  cidr_block        = each.value.public_cidr
+  availability_zone = each.key
 
   map_public_ip_on_launch = true # Defaults to false
 

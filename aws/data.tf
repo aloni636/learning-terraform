@@ -35,11 +35,10 @@ data "aws_ami" "ubuntu" {
   owners = ["099720109477"] # Canonical AMI owner ID
 }
 
-output "aws_ami_ubuntu_name" {
-  value = data.aws_ami.ubuntu.name
-}
-output "aws_ami_ubuntu_creation_date" {
-  value = data.aws_ami.ubuntu.creation_date
+# See: https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-public-parameters-ami.html
+# Access the AMI id with the `value` attribute
+data "aws_ssm_parameter" "amazon_linux_arm" {
+  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-arm64"
 }
 
 # CIDR blocks dedicated to the regional S3 services, accessible from the VPC gateway
@@ -48,6 +47,7 @@ data "aws_prefix_list" "s3" {
 }
 
 # NOTE: You can view all s3 prefix lists (list of CIDR blocks) by uncommenting this block:
-# output "aws_s3_prefix_list" {
-#   value = data.aws_prefix_list.s3.cidr_blocks
-# }
+# output "aws_s3_prefix_list" { value = data.aws_prefix_list.s3.cidr_blocks }
+output "aws_ami_ubuntu_name" { value = data.aws_ami.ubuntu.name }
+output "aws_ami_ubuntu_creation_date" { value = data.aws_ami.ubuntu.creation_date }
+output "aws_ami_amazon_linux_ami" { value = data.aws_ssm_parameter.amazon_linux_arm.name }

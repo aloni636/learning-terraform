@@ -4,4 +4,6 @@ locals {
   has_public_subnets = length(local.public_azs) > 0
   nat_azs            = { for az, cfg in var.availability_zones : az => cfg if cfg.private_nat }
   rds_azs            = { for az, cfg in var.availability_zones : az => cfg if cfg.rds_cidr != null }
+  main_az            = one([for az, cfg in var.availability_zones : { name = az, cfg = cfg } if cfg.main_az])
+  private_ec2_azs    = { for az, cfg in var.availability_zones : az => cfg if cfg.private_ec2 }
 }
